@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arcade Retro Top Oyunu</title>
+<style>
+  body { margin: 0; overflow: hidden; background: #87cefa; }
+  canvas { display: block; margin: 0 auto; background: #87cefa; touch-action: none; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let WIDTH = window.innerWidth;
+let HEIGHT = window.innerHeight;
+canvas.width = WIDTH;
+canvas.height = HEIGHT;
+
+// Top
+let ballRadius = 30;
+let ballX = WIDTH / 2;
+let ballY = HEIGHT / 2;
+let ballSpeedX = 12; // Sabit hız
+let ballSpeedY = 12;
+
+// Raketler
+let paddleWidth = 30;
+let paddleHeight = 250;
+let paddleSpeed = 20;
+
+let leftPaddleY = HEIGHT/2 - paddleHeight/2;
+let rightPaddleY = HEIGHT/2 - paddleHeight/2;
+
+// Skor
+let leftScore = 0;
+let rightScore = 0;
+
+// Rainbow renk fonksiyonu
+function rainbowColor(offset=0) {
+    let t = Date.now()/100 + offset;
+    let r = Math.floor((Math.sin(t)+1)*127);
+    let g = Math.floor((Math.sin(t+2)+1)*127);
+    let b = Math.floor((Math.sin(t+4)+1)*127);
+    return `rgb(${r},${g},${b})`;
+}
+
+// Dokunmatik kontrol (direkt atlama)
+canvas.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    for (let touch of e.touches) {
+        if (touch.clientX < WIDTH/2) leftPaddleY = touch.clientY - paddleHeight/2;
+        else rightPaddleY = touch.clientY - paddleHeight/2;
+    }
+}, {passive:false});
+
+canvas.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+    for (let touch of e.touches) {
+        if (touch.clientX < WIDTH/2) leftPaddleY = touch.clientY - paddleHeight/2;
+        else rightPaddleY = touch.clientY - paddleHeight/2;
+    }
+}, {passive:false});
+
+// Klavye kontrol (opsiyonel)
+let keys = {};
+window.addEventListener('keydown', e => keys[e.key] = true);
+window.addEventListener('keyup', e => keys[e.key] = false);
+
+// Arka plan çizimi
+function drawBackground() {
+    ctx.fillStyle = '#87cefa';
+    ctx.fillRect(0,0,WIDTH,HEIGHT);
+    
+    // Güneş
+    let sunX = WIDTH/2;
+    let sunY = HEIGHT/2;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, 80, 0, Math.PI*2);
+    ctx.fillStyle = 'rgb(255,223,0)';
+    ctx.fill();
+
+    // Dalga dalga ışık
+    for (let i=5; i<200; i+=15) {
+        let alpha = Math.max(0, 100 - i/2 + 20*Math.sin(Date.now()/300));
+        ctx.beginPath();
+        ctx.arc(sunX, sunY, 80+i, 0, Math.PI*2);
+        ctx.strokeStyle = `rgba(255,223,0,${alpha/100})`;
+        ctx.lineWidth = 5;
+        ctx.stroke();
+    }
+}
+
+// Oyun döngüsü
+function gameLoop() {
+    // Klavye kontrol
+    if(keys['w'] && leftPaddleY>0) leftPaddleY -= paddleSpeed;
+    if(keys['s'] && leftPaddleY+paddleHeight<HEIGHT) leftPaddleY += paddleSpeed;
+    if(keys['ArrowUp'] && rightPaddleY>0) rightPaddleY -= paddleSpeed;
+    if(keys['ArrowDown'] && rightPaddleY+paddleHeight<HEIGHT) rightPaddleY += paddleSpeed;
+
+    // Top hareketi
+    ballX += ballSpeedX;
+    ballY += ballSpeedY;
+
+    // Duvar çarpması
+    if(ballY - ballRadius <= 0 || ballY + ballRadius >= HEIGHT) ballSpeedY *= -1;
+
+    // Raket çarpması (Sabit hız, hiç değişmiyor)
+    if(ballX - ballRadius <= 50 + paddleWidth && ballY >= leftPaddleY && ballY <= leftPaddleY + paddleHeight) {
+        ballSpeedX = Math.abs(ballSpeedX); // Sağa
+        ballX = 50 + paddleWidth + ballRadius;
+    }
+    if(ballX + ballRadius >= WIDTH-50 - paddleWidth && ballY >= rightPaddleY && ballY <= rightPaddleY + paddleHeight) {
+        ballSpeedX = -Math.abs(ballSpeedX); // Sola
+        ballX = WIDTH-50 - paddleWidth - ballRadius;
+    }
+
+    // Skor
+    if(ballX - ballRadius <= 0) { rightScore++; resetBall(); }
+    if(ballX + ballRadius >= WIDTH) { leftScore++; resetBall(); }
+
+    drawBackground();
+
+    // Raketler
+    ctx.fillStyle = rainbowColor(0);
+    ctx.fillRect(50, leftPaddleY, paddleWidth, paddleHeight);
+    ctx.fillStyle = rainbowColor(10);
+    ctx.fillRect(WIDTH-50-paddleWidth, rightPaddleY, paddleWidth, paddleHeight);
+
+    // Top
+    ctx.beginPath();
+    ctx.arc(ballX, ballY, ballRadius,0,Math.PI*2);
+    ctx.fillStyle = rainbowColor(5);
+    ctx.fill();
+
+    // Skor
+    ctx.fillStyle = 'rgb(20,20,20)';
+    ctx.font = '80px Arial';
+    ctx.fillText(leftScore, WIDTH/4 - 20, 100);
+    ctx.fillText(rightScore, 3*WIDTH/4 - 20, 100);
+
+    // Ortada "Asaf Battal"
+    ctx.font = '40px Arial';
+    ctx.fillStyle = 'black';
+    ctx.fillText('Asaf Battal', WIDTH/2 - 80, HEIGHT/2 - 20);
+
+    requestAnimationFrame(gameLoop);
+}
+
+function resetBall() {
+    ballX = WIDTH/2;
+    ballY = HEIGHT/2;
+    ballSpeedX = 12; // Sabit hız
+    ballSpeedY = 12;
+}
+
+// Ekran boyutu değişirse yeniden ayarla
+window.addEventListener('resize', () => {
+    WIDTH = window.innerWidth;
+    HEIGHT = window.innerHeight;
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
+});
+
+gameLoop();
+</script>
+</body>
+</html>
